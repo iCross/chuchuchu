@@ -203,6 +203,7 @@
         }),
       };
     } catch (error) {
+      console.error('fetchSlackThread error:', error);
       throw error;
     }
   }
@@ -225,6 +226,7 @@
   };
 
   XHR.send = function (...args) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
 
     // Capture token from JSON data if present
