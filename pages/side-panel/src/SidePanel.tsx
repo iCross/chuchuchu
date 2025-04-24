@@ -305,7 +305,7 @@ ${selectedHatData.prompt}`;
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [handleAskAssistant, pageType.type, selectedHat, hats]);
+  }, [handleAskAssistant, pageType, selectedHat, hats]);
 
   // Add effect for URL-based hat selection
   useEffect(() => {

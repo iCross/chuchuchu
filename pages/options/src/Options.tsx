@@ -1,3 +1,4 @@
+/* eslint-disable import/named */
 import { useRef, useEffect, useState } from 'react';
 import { withErrorBoundary, withSuspense, useStorage } from '@extension/shared';
 import {
@@ -57,12 +58,13 @@ import {
   DEFAULT_MODE,
   selectedHatStorage,
 } from './vars';
-import { HashRouter, Routes, Route, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'; // eslint-disable-line import/named
 import type { Theme as ReactSelectTheme } from 'react-select';
 import { HatEditor } from './HatEditor';
 import { hatStorage } from '@extension/storage';
 import { runModelMigration } from './utils/model-migration';
 import { DragDropContext, Droppable, Draggable, type DropResult } from 'react-beautiful-dnd';
+import { nanoid } from 'nanoid';
 
 type LanguageOption = {
   value: string;
@@ -111,6 +113,18 @@ const createSelectTheme = (isLight: boolean) => (theme: ReactSelectTheme) => ({
   },
 });
 
+// Generate a new Hat ID for cloning
+function generateHatId(label: string): string {
+  const slug = label
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  const uniqueSuffix = nanoid(8);
+  return ['hat', slug, uniqueSuffix].filter(Boolean).join('_');
+}
+
 const Options = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -146,7 +160,13 @@ const Options = () => {
     },
   });
 
-  const editingHat = hatId ? hats?.find(hat => hat.id === hatId) || null : null;
+  const sourceHat = hatId ? hats.find(hat => hat.id === hatId) || null : null;
+  const isCloning = location.pathname.includes('/hats/clone/');
+  const editingHat = sourceHat
+    ? isCloning
+      ? { ...sourceHat, id: generateHatId(sourceHat.label), label: `${sourceHat.label} (Copy)` }
+      : sourceHat
+    : null;
   const isModalOpen =
     location.pathname.includes('/hats/add') ||
     location.pathname.includes('/hats/edit/') ||
@@ -344,7 +364,7 @@ const Options = () => {
     };
 
     initializeHats();
-  }, []);
+  }, [toast]);
 
   const handleModalClose = () => {
     navigate('/');

@@ -1,21 +1,5 @@
 import type { ZoomData } from './types';
 
-const extractTranscriptFromVTT = (vttContent: string): string => {
-  const lines = vttContent.split('\n');
-  const transcript: string[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    // Skip timecodes and empty lines
-    if (line.includes('-->') || line === '' || /^\d+$/.test(line)) {
-      continue;
-    }
-    transcript.push(line);
-  }
-
-  return transcript.join(' ');
-};
-
 export const captureZoom = () => {
   const handleMessage = async (
     message: { type: string },

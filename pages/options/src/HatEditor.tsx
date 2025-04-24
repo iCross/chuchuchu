@@ -123,16 +123,7 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
 
   useEffect(() => {
     if (editingHat) {
-      if (location.pathname.includes('/hats/clone/')) {
-        setNewHat({
-          ...editingHat,
-          id: generateHatId(editingHat.label),
-          alias: `${editingHat.alias || editingHat.label}-copy`,
-          label: `${editingHat.label} (Copy)`,
-        });
-      } else {
-        setNewHat(editingHat);
-      }
+      setNewHat(editingHat);
     } else {
       setNewHat({
         id: generateHatId('new-hat'),
@@ -141,7 +132,7 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
         model: DEFAULT_MODEL,
       });
     }
-  }, [editingHat, location.pathname]);
+  }, [editingHat]);
 
   // Load custom models on mount
   useEffect(() => {
@@ -237,9 +228,7 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" portalProps={{ containerRef: undefined }}>
       <ModalOverlay />
       <ModalContent bg={bg} color={textColor} mx={10} position="relative">
-        <ModalHeader>
-          {location.pathname.includes('/hats/clone/') ? 'Clone Hat' : editingHat ? 'Edit Hat' : 'Add New Hat'}
-        </ModalHeader>
+        <ModalHeader>{editingHat ? 'Edit Hat' : 'Add New Hat'}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           {error ? (
@@ -435,7 +424,7 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
             Cancel
           </Button>
           <Button colorScheme="blue" onClick={handleSave}>
-            {location.pathname.includes('/hats/clone/') ? 'Add Hat' : editingHat ? 'Update Hat' : 'Add Hat'}
+            {editingHat ? 'Update Hat' : 'Add Hat'}
           </Button>
         </ModalFooter>
       </ModalContent>

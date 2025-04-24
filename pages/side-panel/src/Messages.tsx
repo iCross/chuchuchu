@@ -1,3 +1,4 @@
+/* eslint-disable tailwindcss/no-custom-classname */
 import { Box, Flex, Text, VStack, useColorModeValue, Button, Tooltip, IconButton, HStack } from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -246,6 +247,7 @@ export const Messages = ({ messages, isTyping }: Props) => {
                 </ReactMarkdown>
               </Box>
               <Flex justifyContent="flex-end" alignItems="center" mt={2}>
+                {/* eslint-disable-next-line tailwindcss/no-custom-classname */}
                 <HStack spacing={1} className="message-actions" transition="all 0.2s">
                   <Tooltip label="Copy">
                     <IconButton
@@ -363,6 +365,7 @@ export const Messages = ({ messages, isTyping }: Props) => {
               message.content
             )}
             <Flex justifyContent="flex-end" alignItems="center" mt={2}>
+              {/* eslint-disable-next-line tailwindcss/no-custom-classname */}
               <HStack spacing={1} className="message-actions" transition="all 0.2s">
                 <Tooltip label="Copy">
                   <IconButton
