@@ -53,6 +53,7 @@ export const handleOllamaStream = async ({
     const decoder = new TextDecoder();
     let fullResponse = '';
 
+    // eslint-disable-next-line no-constant-condition -- infinite loop for streaming reader
     while (true) {
       const { done, value } = await reader.read();
 
