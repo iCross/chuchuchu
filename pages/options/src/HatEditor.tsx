@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Modal,
   ModalOverlay,
@@ -30,7 +31,7 @@ import {
 } from '@chakra-ui/react';
 import { DeleteIcon, AddIcon } from '@chakra-ui/icons';
 import Select, { components } from 'react-select';
-import type { Theme as ReactSelectTheme } from 'react-select';
+import type { Theme, OptionProps } from 'react-select';
 import {
   SUPPORTED_LANGUAGES,
   DEFAULT_LANGUAGE_CODE,
@@ -63,12 +64,7 @@ type LanguageOption = {
   name: string;
 };
 
-type OptionProps = {
-  children: React.ReactNode;
-  value: string;
-} & Record<string, unknown>;
-
-const createSelectTheme = (isLight: boolean) => (theme: ReactSelectTheme) => ({
+const createSelectTheme = (isLight: boolean) => (theme: Theme) => ({
   ...theme,
   colors: {
     ...theme.colors,
@@ -108,6 +104,8 @@ const isCustomModel = (modelValue: string) => {
 };
 
 export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Props) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [newHat, setNewHat] = useState<Partial<Hat>>({
     id: generateHatId('new-hat'),
     temperature: 0,
@@ -187,20 +185,9 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
     }));
   };
 
-  const handleAddModel = (modelName: string) => {
-    const newModel = {
-      value: `ollama/${modelName}`,
-      label: `Ollama: ${modelName}`,
-    };
-
-    // Update custom models instead of SUPPORTED_MODELS
-    setCustomModels(prev => [...prev, newModel]);
-
-    // Update the current hat's model
-    setNewHat(prev => ({
-      ...prev,
-      model: newModel.value,
-    }));
+  const handleAddModel = (modelValue: string) => {
+    setNewHat(prev => ({ ...prev, model: modelValue }));
+    setIsModelSelectorOpen(false);
   };
 
   const handleRemoveModel = async (modelValue: string) => {
@@ -223,6 +210,19 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
   };
 
   const isModelInUse = (modelValue: string) => allHats.some(hat => hat.model === modelValue);
+
+  const handleClone = () => {
+    if (!editingHat) return;
+
+    setNewHat({
+      ...editingHat,
+      id: generateHatId(editingHat.label),
+      alias: `${editingHat.alias || editingHat.label}-copy`,
+      label: `${editingHat.label} (Copy)`,
+    });
+
+    navigate(`/hats/clone/${editingHat.id}`);
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" portalProps={{ containerRef: undefined }}>
@@ -340,15 +340,17 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
                       isSearchable
                       components={{
                         IndicatorSeparator: () => null,
-                        Option: ({ children, ...props }: OptionProps) => (
+                        Option: ({ children, ...props }: OptionProps<ModelOption>) => (
                           <Box position="relative">
                             <components.Option {...props}>
                               {children}
-                              {isCustomModel(props.value) && (
+                              {isCustomModel(props.data.value) && (
                                 <Tooltip
                                   hasArrow
                                   label={
-                                    isModelInUse(props.value) ? "Can't remove model while it's in use" : 'Remove model'
+                                    isModelInUse(props.data.value)
+                                      ? "Can't remove model while it's in use"
+                                      : 'Remove model'
                                   }>
                                   <Box display="inline-block">
                                     <IconButton
@@ -361,9 +363,9 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
                                       transform="translateY(-50%)"
                                       onClick={e => {
                                         e.stopPropagation();
-                                        handleRemoveModel(props.value);
+                                        handleRemoveModel(props.data.value);
                                       }}
-                                      isDisabled={isModelInUse(props.value)}
+                                      isDisabled={isModelInUse(props.data.value)}
                                     />
                                   </Box>
                                 </Tooltip>
@@ -400,17 +402,22 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
           </Grid>
         </ModalBody>
         <ModalFooter display="flex" width="100%" alignItems="center" gap={3}>
-          {editingHat && (
-            <Button
-              colorScheme="red"
-              variant="ghost"
-              onClick={() => {
-                onSave(editingHat);
-                onClose();
-              }}
-              leftIcon={<DeleteIcon />}>
-              Delete
-            </Button>
+          {editingHat && !location.pathname.includes('/hats/clone/') && (
+            <>
+              <Button colorScheme="blue" variant="ghost" onClick={handleClone} leftIcon={<AddIcon />}>
+                Clone Hat
+              </Button>
+              <Button
+                colorScheme="red"
+                variant="ghost"
+                onClick={() => {
+                  onSave(editingHat);
+                  onClose();
+                }}
+                leftIcon={<DeleteIcon />}>
+                Delete
+              </Button>
+            </>
           )}
           <Box flex={1} />
           <Button variant="ghost" onClick={onClose}>

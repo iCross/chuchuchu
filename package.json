@@ -1,6 +1,6 @@
 {
   "name": "chuchuchu",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Summarize all web pages",
   "private": true,
   "repository": {
@@ -23,7 +23,7 @@
     "e2e": "pnpm build && pnpm zip && turbo e2e",
     "e2e:firefox": "pnpm build:firefox && pnpm zip:firefox && cross-env __FIREFOX__=true turbo e2e",
     "type-check": "turbo type-check",
-    "lint": "turbo lint --continue -- --fix --cache --cache-location node_modules/.cache/.eslintcache",
+    "lint": "turbo lint --continue -- --cache --cache-location node_modules/.cache/.eslintcache",
     "lint:fix": "turbo lint:fix --continue -- --fix --cache --cache-location node_modules/.cache/.eslintcache",
     "prettier": "turbo prettier --continue -- --cache --cache-location node_modules/.cache/.prettiercache",
     "prepare": "husky",
@@ -59,7 +59,7 @@
     "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.14",
     "tslib": "^2.6.3",
-    "turbo": "^2.5.1",
+    "turbo": "^2.5.3",
     "typescript": "5.5.4",
     "vite": "5.4.9"
   },

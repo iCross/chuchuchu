@@ -1,6 +1,6 @@
 {
   "name": "@extension/dev-utils",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "chrome extension - dev utils",
   "private": true,
   "sideEffects": false,
@@ -22,7 +22,8 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@extension/shared": "workspace:*",
     "@extension/tsconfig": "workspace:*",
-    "@extension/shared": "workspace:*"
+    "eslint-import-resolver-typescript": "^4.3.4"
   }
 }

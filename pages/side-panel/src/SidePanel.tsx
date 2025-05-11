@@ -95,11 +95,12 @@ const SidePanel = () => {
   const textColor = useColorModeValue('dracula.light.foreground', 'dracula.foreground');
 
   const handleAskAssistant = useCallback(
-    async (prompt: string, isInitialAnalysis = false) => {
+    async (prompt: string, isInitialAnalysis = false, overrideHatId?: string) => {
       setIsTyping(true);
       setIsGenerating(true);
 
-      const selectedHatData = hats.find(hat => hat.id === selectedHat);
+      const effectiveHatId = overrideHatId || selectedHat;
+      const selectedHatData = hats.find(hat => hat.id === effectiveHatId);
       if (!selectedHatData) return;
 
       try {
@@ -184,7 +185,7 @@ ${selectedHatData.prompt}`;
         setIsGenerating(false);
       }
     },
-    [hats, selectedHat, mode, messages, originalContent],
+    [hats, selectedHat, mode, messages, originalContent, latestLanguageRef],
   );
 
   const handleHatChange = useCallback(
@@ -207,12 +208,12 @@ ${selectedHatData.prompt}`;
 
         if (threadData) {
           const formattedData = formatThreadForLLM(threadData);
-          handleAskAssistant(formattedData, true);
+          handleAskAssistant(formattedData, true, hatId);
         } else if (articleContent) {
           const formattedContent = formatArticleContent(articleContent, pageType, articleTitle);
 
           setOriginalContent(formattedContent);
-          handleAskAssistant(formattedContent, true);
+          handleAskAssistant(formattedContent, true, hatId);
         }
       }
     },
@@ -554,7 +555,31 @@ ${selectedHatData.prompt}`;
               }
               setIsCapturing(true);
               if (!options?.reloadPage) {
-                if (pageType.type === 'slack') {
+                if (options?.selection) {
+                  chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+                    const currentTab = tabs[0];
+                    if (currentTab?.id) {
+                      chrome.tabs.sendMessage(currentTab.id, { type: 'CAPTURE_SELECTION' }, response => {
+                        if (response?.type === 'SELECTION_CAPTURED') {
+                          setArticleContent(response.content);
+                          setArticleTitle(response.title || '');
+                          setContentType('article');
+                          setHasContent(true);
+                          setOriginalUrl(response.url || '');
+                          setFormattedUrl(response.url || '');
+                          const formattedContent = formatArticleContent(
+                            response.content,
+                            pageType,
+                            response.title || '',
+                          );
+                          setOriginalContent(formattedContent);
+                          handleAskAssistant(formattedContent, true);
+                        }
+                        setIsCapturing(false);
+                      });
+                    }
+                  });
+                } else if (pageType.type === 'slack') {
                   handleSummarizeSlack();
                 } else {
                   handleCapturePage();

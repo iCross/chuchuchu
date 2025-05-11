@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Flex, HStack, Text, Tooltip, VStack, Textarea, useColorModeValue } from '@chakra-ui/react';
+import {
+  Button,
+  Flex,
+  HStack,
+  Text,
+  VStack,
+  Textarea,
+  Tooltip,
+  useColorModeValue,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  ButtonGroup,
+  IconButton,
+} from '@chakra-ui/react';
 import { isRestrictedGoogleDomain } from '../utils/domainUtils';
+import { ChevronDownIcon } from '@chakra-ui/icons';
 
 type Props = {
   pageType: {
@@ -8,7 +24,7 @@ type Props = {
     url?: string;
   };
   isCapturing: boolean;
-  onSummarize: (options?: { reloadPage?: boolean; manualContent?: string }) => void;
+  onSummarize: (options?: { reloadPage?: boolean; selection?: boolean; manualContent?: string }) => void;
 };
 
 type ZeroStateMessage = {
@@ -30,6 +46,8 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
   const [readabilityChecked, setReadabilityChecked] = useState(false);
   const [isReadable, setIsReadable] = useState(true);
   const [domReady, setDomReady] = useState(true);
+  const [hasSelection, setHasSelection] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
   const [manualContent, setManualContent] = useState('');
 
   // Handle unsupported page detection
@@ -237,6 +255,32 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
     return undefined;
   }, [pageType.type, isUnsupportedPage, isContentScriptLoaded, domReady]);
 
+  // Listen for selection changes from content script
+  useEffect(() => {
+    const handleMessage = (message: { type: string; hasSelection?: boolean; selectedText?: string }) => {
+      if (message.type === 'SELECTION_CHANGED') {
+        setHasSelection(message.hasSelection || false);
+        setSelectedText(message.selectedText || '');
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, []);
+
+  const handleSummarizeSelection = useCallback(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      const currentTab = tabs[0];
+      if (!currentTab?.id) return;
+
+      chrome.tabs.sendMessage(currentTab.id, { type: 'CAPTURE_SELECTION' }, response => {
+        if (response?.type === 'SELECTION_CAPTURED') {
+          onSummarize({ selection: true });
+        }
+      });
+    });
+  }, [onSummarize]);
+
   const handleReloadPage = useCallback(() => {
     onSummarize({ reloadPage: true });
     chrome.runtime.sendMessage({ type: 'RELOAD_AND_CAPTURE' });
@@ -280,19 +324,38 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
             hasArrow
             placement="top"
             fontSize="xs">
-            <Button
-              onClick={() => onSummarize()}
-              colorScheme="blue"
-              leftIcon={<Text>⭐️</Text>}
-              isLoading={isCapturing}
-              loadingText="Capturing page"
-              isDisabled={
-                isUnsupportedPage || (readabilityChecked && !isReadable) || (!isContentScriptLoaded && domReady)
-              }
-              w="100%">
-              Summarize current page
-            </Button>
+            <ButtonGroup isAttached width="100%">
+              <Button
+                colorScheme="pink"
+                leftIcon={<Text>⭐️</Text>}
+                isLoading={isCapturing}
+                loadingText="Capturing page"
+                isDisabled={
+                  isUnsupportedPage || (readabilityChecked && !isReadable) || (!isContentScriptLoaded && domReady)
+                }
+                onClick={() => onSummarize()}
+                flexGrow={1}>
+                Summarize current page
+              </Button>
+              <Menu placement="bottom-end">
+                <MenuButton as={IconButton} aria-label="more-options" icon={<ChevronDownIcon />} colorScheme="pink" />
+                <MenuList>
+                  <MenuItem
+                    onClick={handleSummarizeSelection}
+                    isDisabled={!hasSelection}
+                    width="100%"
+                    title={selectedText}>
+                    Summarize selected text
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+            </ButtonGroup>
           </Tooltip>
+          {readabilityChecked && !isReadable && (
+            <Text fontSize="xs" color="orange.500" textAlign="center">
+              Warning: This page may not contain readable content. The summary might be limited.
+            </Text>
+          )}
           {pageType.url && !isUnsupportedPage && (
             <Text
               maxW="300px"
@@ -312,7 +375,7 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
             value={manualContent}
             onChange={e => setManualContent(e.target.value)}
             size="sm"
-            rows={8}
+            rows={5}
             resize="vertical"
             w="100%"
           />
