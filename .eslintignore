@@ -1,3 +1,5 @@
 dist
 node_modules
 tailwind.config.ts
+
+chrome-extension/public/pdf.worker.js

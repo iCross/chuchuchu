@@ -22,7 +22,8 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@extension/shared": "workspace:*",
     "@extension/tsconfig": "workspace:*",
-    "@extension/shared": "workspace:*"
+    "eslint-import-resolver-typescript": "^4.3.4"
   }
 }
