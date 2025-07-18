@@ -24,7 +24,13 @@ type Props = {
     url?: string;
   };
   isCapturing: boolean;
-  onSummarize: (options?: { reloadPage?: boolean; selection?: boolean; manualContent?: string }) => void;
+  onSummarize: (options?: {
+    reloadPage?: boolean;
+    selection?: boolean;
+    screenshot?: boolean;
+    dataUrl?: string;
+    manualContent?: string;
+  }) => void;
 };
 
 type ZeroStateMessage = {
@@ -281,6 +287,40 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
     });
   }, [onSummarize]);
 
+  const handleCaptureScreenshot = useCallback(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      const currentTab = tabs[0];
+      if (!currentTab?.id) return;
+
+      // First, get the page dimensions
+      chrome.tabs.sendMessage(currentTab.id, { type: 'GET_PAGE_DIMENSIONS' }, async response => {
+        console.log('[DEBUG] GET_PAGE_DIMENSIONS response:', response);
+        if (!response?.dimensions) return;
+
+        // Get the current window
+        const window = await chrome.windows.getCurrent();
+        if (!window.id) return;
+
+        // Store original window size
+
+        try {
+          // First capture the current viewport
+          chrome.tabs.captureVisibleTab(window.id, { format: 'png' }, async dataUrl => {
+            if (dataUrl) {
+              onSummarize({ screenshot: true, dataUrl });
+            }
+
+            // If the page content is larger than the viewport, we might want to capture the full page
+            // This is optional and can be implemented later if needed
+            // For now, we'll just use the current viewport capture
+          });
+        } catch (error) {
+          console.error('[DEBUG] Error capturing screenshot:', error);
+        }
+      });
+    });
+  }, [onSummarize]);
+
   const handleReloadPage = useCallback(() => {
     onSummarize({ reloadPage: true });
     chrome.runtime.sendMessage({ type: 'RELOAD_AND_CAPTURE' });
@@ -338,7 +378,13 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
                 Summarize current page
               </Button>
               <Menu placement="bottom-end">
-                <MenuButton as={IconButton} aria-label="more-options" icon={<ChevronDownIcon />} colorScheme="pink" />
+                <MenuButton
+                  as={IconButton}
+                  aria-label="more-options"
+                  icon={<ChevronDownIcon />}
+                  colorScheme="pink"
+                  isDisabled={isCapturing}
+                />
                 <MenuList>
                   <MenuItem
                     onClick={handleSummarizeSelection}
@@ -346,6 +392,9 @@ export const ZeroState = ({ pageType, isCapturing, onSummarize }: Props) => {
                     width="100%"
                     title={selectedText}>
                     Summarize selected text
+                  </MenuItem>
+                  <MenuItem onClick={handleCaptureScreenshot} width="100%">
+                    Capture screenshot
                   </MenuItem>
                 </MenuList>
               </Menu>

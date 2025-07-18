@@ -58,6 +58,7 @@ export const Messages = ({ messages, isTyping }: Props) => {
   const codeFg = useColorModeValue('dracula.light.pink', 'dracula.pink');
   const buttonColor = useColorModeValue('dracula.light.comment', 'dracula.comment');
   const buttonHoverBg = useColorModeValue('dracula.light.currentLine', 'dracula.currentLine');
+  const blockquoteColor = useColorModeValue('dracula.light.orange', 'dracula.yellow');
 
   const hasThinkBlock = messages.some(
     message =>
@@ -205,7 +206,7 @@ export const Messages = ({ messages, isTyping }: Props) => {
                     borderLeftColor: blockquoteBorderColor,
                     pl: 4,
                     my: 2,
-                    color: 'dracula.yellow',
+                    color: blockquoteColor,
                   },
                   a: {
                     color: 'dracula.purple',

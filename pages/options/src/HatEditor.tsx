@@ -157,7 +157,6 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
 
       // Check individual hat size
       const hatSize = new Blob([JSON.stringify(validatedHat)]).size;
-      console.log('[HatEditor] Hat size:', hatSize);
 
       if (hatSize > 8192) {
         // Chrome's QUOTA_BYTES_PER_ITEM is 8192 bytes
@@ -168,7 +167,6 @@ export const HatEditor = ({ isOpen, onClose, editingHat, onSave, allHats }: Prop
       onSave(validatedHat);
       onClose();
     } catch (error) {
-      console.error('Invalid hat data:', error);
       if (error instanceof Error) {
         setError(error.message);
       } else {
