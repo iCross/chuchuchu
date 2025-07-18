@@ -1,7 +1,7 @@
 import 'webextension-polyfill';
 // import { exampleThemeStorage } from '@extension/storage';
 import debounce from 'debounce';
-import type { RuleActionType, ResourceType } from 'chrome';
+
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
 const filters = {
@@ -42,14 +42,14 @@ const updateRedirectRule = async (enabled: boolean) => {
           id: 1,
           priority: 1,
           action: {
-            type: 'redirect' as RuleActionType,
+            type: 'redirect' as chrome.declarativeNetRequest.RuleActionType,
             redirect: {
               url: 'https://app.slack.com/client',
             },
           },
           condition: {
             urlFilter: 'https://*.slack.com/archives/*',
-            resourceTypes: ['main_frame' as ResourceType],
+            resourceTypes: ['main_frame' as chrome.declarativeNetRequest.ResourceType],
           },
         },
       ],

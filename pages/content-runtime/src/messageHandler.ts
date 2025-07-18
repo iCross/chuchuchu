@@ -20,6 +20,12 @@ console.log('[DEBUG] Content script message handler initialized');
 // Store the current screenshot
 let currentScreenshot: string | null = null;
 
+const checkReadability = (): boolean => {
+  // Simple readability check - for now just return true
+  // This could be enhanced with more sophisticated logic if needed
+  return true;
+};
+
 const getPageDimensions = (): Dimensions => {
   console.log('[DEBUG] Getting page dimensions');
   const width = Math.max(
