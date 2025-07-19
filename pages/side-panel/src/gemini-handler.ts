@@ -34,12 +34,6 @@ export const handleGeminiStream = async ({
   }
 
   const apiUrl = `${baseUrl}/models/${model}:streamGenerateContent?key=${apiKey}`;
-  console.log('🚀 Gemini API Request:', {
-    url: apiUrl.replace(apiKey, '***'),
-    model: model,
-    temperature: temperature,
-    hasApiKey: !!apiKey,
-  });
 
   // Convert OpenAI format messages to Gemini format
   const geminiMessages = messages.map(msg => ({
