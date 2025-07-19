@@ -3,7 +3,7 @@ import { handleOllamaStream } from './ollama-handler';
 import { handleOpenAIStream } from './openai-handler';
 import { handleAnthropicStream } from './anthropic-handler';
 import { handleMoonshotStream } from './moonshot-handler';
-import { handleGeminiStream, handleGeminiStreamPlainText } from './gemini-handler';
+import { handleGeminiStream } from './gemini-handler';
 import { type AskAssistantOptions } from './types';
 import {
   groqApiKeyStorage,
