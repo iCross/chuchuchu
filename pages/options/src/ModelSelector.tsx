@@ -557,6 +557,8 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
     groqBaseUrl,
     moonshotApiKey,
     moonshotBaseUrl,
+    geminiApiKey,
+    geminiBaseUrl,
   ]);
 
   useEffect(() => {

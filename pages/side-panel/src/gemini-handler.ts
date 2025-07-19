@@ -95,7 +95,6 @@ export const handleGeminiStream = async ({
     let start = 0;
     let inString = false;
     let escaped = false;
-    let insideArray = false;
 
     for (let i = 0; i < buffer.length; i++) {
       const char = buffer[i];
@@ -118,7 +117,7 @@ export const handleGeminiStream = async ({
       if (inString) continue;
 
       if (char === '[') {
-        insideArray = true;
+        // Start of array
         continue;
       }
 
