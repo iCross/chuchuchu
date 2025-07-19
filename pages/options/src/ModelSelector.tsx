@@ -25,6 +25,10 @@ import {
   openAIKeyStorage,
   ollamaBaseUrlStorage,
   anthropicApiKeyStorage,
+  groqApiKeyStorage,
+  groqBaseUrlStorage,
+  moonshotApiKeyStorage,
+  moonshotBaseUrlStorage,
 } from './vars';
 
 type Model = {
@@ -40,10 +44,12 @@ type ModelOption = {
   isDisabled?: boolean;
 };
 
-type ModelType = 'ollama' | 'anthropic' | 'deepseek' | 'openai';
+type ModelType = 'ollama' | 'anthropic' | 'deepseek' | 'openai' | 'groq' | 'moonshot';
 
 const MODEL_TYPES = [
   { value: 'openai', label: 'OpenAI' },
+  { value: 'groq', label: 'Groq' },
+  { value: 'moonshot', label: 'Moonshot' },
   { value: 'ollama', label: 'Ollama' },
   { value: 'anthropic', label: 'Anthropic' },
   // To be added later:
@@ -66,6 +72,10 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
   const [customModels, setCustomModels] = useState<CustomModel[]>([]);
   const [apiKey, setApiKey] = useState('');
   const [anthropicApiKey, setAnthropicApiKey] = useState('');
+  const [groqApiKey, setGroqApiKey] = useState('');
+  const [groqBaseUrl, setGroqBaseUrl] = useState('https://api.groq.com/openai/v1');
+  const [moonshotApiKey, setMoonshotApiKey] = useState('');
+  const [moonshotBaseUrl, setMoonshotBaseUrl] = useState('https://api.moonshot.cn/v1');
 
   // Create a list of already added model names
   const addedModelNames = useMemo(
@@ -79,17 +89,34 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
 
   useEffect(() => {
     const loadInitialState = async () => {
-      const [savedBaseUrl, models, savedOpenAIKey, savedAnthropicKey] = await Promise.all([
+      const [
+        savedBaseUrl,
+        models,
+        savedOpenAIKey,
+        savedAnthropicKey,
+        savedGroqKey,
+        savedGroqBaseUrl,
+        savedMoonshotKey,
+        savedMoonshotBaseUrl,
+      ] = await Promise.all([
         ollamaBaseUrlStorage.get(),
         customModelsStorage.get(),
         openAIKeyStorage.get(),
         anthropicApiKeyStorage.get(),
+        groqApiKeyStorage.get(),
+        groqBaseUrlStorage.get(),
+        moonshotApiKeyStorage.get(),
+        moonshotBaseUrlStorage.get(),
       ]);
 
       setBaseUrl(savedBaseUrl);
       setCustomModels(models);
       setApiKey(savedOpenAIKey);
       setAnthropicApiKey(savedAnthropicKey);
+      setGroqApiKey(savedGroqKey);
+      setGroqBaseUrl(savedGroqBaseUrl);
+      setMoonshotApiKey(savedMoonshotKey);
+      setMoonshotBaseUrl(savedMoonshotBaseUrl);
     };
 
     if (isOpen) {
@@ -109,6 +136,30 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
       anthropicApiKeyStorage.set(anthropicApiKey);
     }
   }, [anthropicApiKey]);
+
+  useEffect(() => {
+    if (groqApiKey) {
+      groqApiKeyStorage.set(groqApiKey);
+    }
+  }, [groqApiKey]);
+
+  useEffect(() => {
+    if (groqBaseUrl) {
+      groqBaseUrlStorage.set(groqBaseUrl);
+    }
+  }, [groqBaseUrl]);
+
+  useEffect(() => {
+    if (moonshotApiKey) {
+      moonshotApiKeyStorage.set(moonshotApiKey);
+    }
+  }, [moonshotApiKey]);
+
+  useEffect(() => {
+    if (moonshotBaseUrl) {
+      moonshotBaseUrlStorage.set(moonshotBaseUrl);
+    }
+  }, [moonshotBaseUrl]);
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -178,6 +229,137 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
           setSelectedModel(firstAvailable || null);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to fetch OpenAI models');
+          setModelOptions([]);
+          setSelectedModel(null);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (selectedType === 'groq') {
+        try {
+          setIsLoading(true);
+          setError(null);
+
+          if (!groqApiKey) {
+            setModelOptions([]);
+            setSelectedModel(null);
+            return;
+          }
+
+          const response = await fetch(`${groqBaseUrl}/models`, {
+            headers: {
+              Authorization: `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch Groq models: ${response.status} ${response.statusText}`);
+          }
+
+          const { data } = await response.json();
+          const chatModels = data
+            .filter(
+              (model: { id: string }) =>
+                // Include all Groq supported models based on official documentation
+                model.id.includes('llama') ||
+                model.id.includes('mixtral') ||
+                model.id.includes('qwen') ||
+                model.id.includes('deepseek') ||
+                model.id.includes('gemma') ||
+                model.id.includes('whisper') === false, // Exclude audio models
+            )
+            .sort((a: { id: string }, b: { id: string }) => {
+              // Sort by model family, then by version
+              const getFamily = (id: string) => {
+                if (id.includes('llama')) return 1;
+                if (id.includes('mixtral')) return 2;
+                if (id.includes('qwen')) return 3;
+                if (id.includes('deepseek')) return 4;
+                if (id.includes('gemma')) return 5;
+                return 6;
+              };
+
+              const familyDiff = getFamily(a.id) - getFamily(b.id);
+              if (familyDiff !== 0) return familyDiff;
+
+              return a.id.localeCompare(b.id);
+            })
+            .map((model: { id: string }) => ({
+              value: model.id,
+              label: model.id
+                .replace(/meta-llama\//g, '')
+                .replace(/mistralai\//g, '')
+                .replace(/microsoft\//g, '')
+                .replace(/google\//g, '')
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase())
+                .trim(),
+              isDisabled: addedModelNames.includes(model.id),
+            }));
+
+          setModelOptions(chatModels);
+          const firstAvailable = chatModels.find((option: ModelOption) => !option.isDisabled);
+          setSelectedModel(firstAvailable || null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch Groq models');
+          setModelOptions([]);
+          setSelectedModel(null);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (selectedType === 'moonshot') {
+        try {
+          setIsLoading(true);
+          setError(null);
+
+          if (!moonshotApiKey) {
+            setModelOptions([]);
+            setSelectedModel(null);
+            return;
+          }
+
+          const response = await fetch(`${moonshotBaseUrl}/models`, {
+            headers: {
+              Authorization: `Bearer ${moonshotApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch Moonshot models: ${response.status} ${response.statusText}`);
+          }
+
+          const { data } = await response.json();
+          const chatModels = data
+            .filter(
+              (model: { id: string }) =>
+                // Include Moonshot models
+                model.id.includes('moonshot') || model.id.includes('v1'),
+            )
+            .sort((a: { id: string }, b: { id: string }) => {
+              return a.id.localeCompare(b.id);
+            })
+            .map((model: { id: string }) => ({
+              value: model.id,
+              label: model.id
+                .replace(/moonshot-/g, 'Moonshot ')
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase())
+                .trim(),
+              isDisabled: addedModelNames.includes(model.id),
+            }));
+
+          setModelOptions(chatModels);
+          const firstAvailable = chatModels.find((option: ModelOption) => !option.isDisabled);
+          setSelectedModel(firstAvailable || null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch Moonshot models');
           setModelOptions([]);
           setSelectedModel(null);
         } finally {
@@ -272,7 +454,18 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
     if (isOpen) {
       fetchModels();
     }
-  }, [isOpen, selectedType, baseUrl, addedModelNames, apiKey, anthropicApiKey]);
+  }, [
+    isOpen,
+    selectedType,
+    baseUrl,
+    addedModelNames,
+    apiKey,
+    anthropicApiKey,
+    groqApiKey,
+    groqBaseUrl,
+    moonshotApiKey,
+    moonshotBaseUrl,
+  ]);
 
   useEffect(() => {
     if (baseUrl !== OLLAMA_API_ENDPOINT) {
@@ -291,10 +484,36 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
 
       const newCustomModel: CustomModel = {
         value: `${selectedType}/${selectedModel.value}`,
-        label: `${selectedType === 'openai' ? 'OpenAI' : selectedType === 'anthropic' ? 'Anthropic' : 'Ollama'}: ${selectedModel.label}`,
+        label: `${
+          selectedType === 'openai'
+            ? 'OpenAI'
+            : selectedType === 'anthropic'
+              ? 'Anthropic'
+              : selectedType === 'groq'
+                ? 'Groq'
+                : selectedType === 'moonshot'
+                  ? 'Moonshot'
+                  : 'Ollama'
+        }: ${selectedModel.label}`,
         type: selectedType,
-        baseUrl: selectedType === 'ollama' ? baseUrl : undefined,
-        apiKey: selectedType === 'openai' ? apiKey : selectedType === 'anthropic' ? anthropicApiKey : undefined,
+        baseUrl:
+          selectedType === 'ollama'
+            ? baseUrl
+            : selectedType === 'groq'
+              ? groqBaseUrl
+              : selectedType === 'moonshot'
+                ? moonshotBaseUrl
+                : undefined,
+        apiKey:
+          selectedType === 'openai'
+            ? apiKey
+            : selectedType === 'anthropic'
+              ? anthropicApiKey
+              : selectedType === 'groq'
+                ? groqApiKey
+                : selectedType === 'moonshot'
+                  ? moonshotApiKey
+                  : undefined,
       };
 
       customModelsStorage.get().then(models => {
@@ -363,6 +582,50 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
               </FormControl>
             )}
 
+            {selectedType === 'groq' && (
+              <>
+                <FormControl>
+                  <FormLabel>Base URL</FormLabel>
+                  <Input
+                    value={groqBaseUrl}
+                    onChange={e => setGroqBaseUrl(e.target.value)}
+                    placeholder="Enter Groq API base URL (default: https://api.groq.com/openai/v1)"
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>API Key</FormLabel>
+                  <Input
+                    type="password"
+                    value={groqApiKey}
+                    onChange={e => setGroqApiKey(e.target.value)}
+                    placeholder="Enter your Groq API key"
+                  />
+                </FormControl>
+              </>
+            )}
+
+            {selectedType === 'moonshot' && (
+              <>
+                <FormControl>
+                  <FormLabel>Base URL</FormLabel>
+                  <Input
+                    value={moonshotBaseUrl}
+                    onChange={e => setMoonshotBaseUrl(e.target.value)}
+                    placeholder="Enter Moonshot API base URL (default: https://api.moonshot.cn/v1)"
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>API Key</FormLabel>
+                  <Input
+                    type="password"
+                    value={moonshotApiKey}
+                    onChange={e => setMoonshotApiKey(e.target.value)}
+                    placeholder="Enter your Moonshot API key"
+                  />
+                </FormControl>
+              </>
+            )}
+
             <FormControl>
               <FormLabel>Model</FormLabel>
               {isLoading ? (
@@ -401,7 +664,9 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
             isDisabled={
               !selectedModel ||
               (selectedType === 'openai' && !apiKey) ||
-              (selectedType === 'anthropic' && !anthropicApiKey)
+              (selectedType === 'anthropic' && !anthropicApiKey) ||
+              (selectedType === 'groq' && !groqApiKey) ||
+              (selectedType === 'moonshot' && !moonshotApiKey)
             }>
             Add Model
           </Button>

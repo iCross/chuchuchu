@@ -1,8 +1,16 @@
-import { handleGroqStream } from './groq-handler';
+import { handleGroqStream, handleGroqOfficialStream } from './groq-handler';
 import { handleOllamaStream } from './ollama-handler';
 import { handleOpenAIStream } from './openai-handler';
 import { handleAnthropicStream } from './anthropic-handler';
+import { handleMoonshotStream } from './moonshot-handler';
 import { type AskAssistantOptions } from './types';
+import {
+  groqApiKeyStorage,
+  groqBaseUrlStorage,
+  moonshotApiKeyStorage,
+  moonshotBaseUrlStorage,
+  customModelsStorage,
+} from '../../options/src/vars';
 
 type GroqMessageContent = {
   type: 'text' | 'image_url';
@@ -53,7 +61,11 @@ export const askAssistant = async ({
           ? model.replace(/^openai\//i, '')
           : model?.toLowerCase().startsWith('anthropic/')
             ? model.replace(/^anthropic\//i, '')
-            : model;
+            : model?.toLowerCase().startsWith('groq/')
+              ? model.replace(/^groq\//i, '')
+              : model?.toLowerCase().startsWith('moonshot/')
+                ? model.replace(/^moonshot\//i, '')
+                : model;
 
     let fullResponse: string;
 
@@ -97,6 +109,39 @@ export const askAssistant = async ({
         model: actualModel,
         temperature,
       });
+    } else if (model?.toLowerCase().startsWith('groq/')) {
+      // Check if this is an official Groq model (has API key configured)
+      const [groqApiKey, groqBaseUrl, customModels] = await Promise.all([
+        groqApiKeyStorage.get(),
+        groqBaseUrlStorage.get(),
+        customModelsStorage.get(),
+      ]);
+
+      const isOfficialGroqModel = customModels.some(m => m.value === model && m.type === 'groq' && m.apiKey);
+
+      if (isOfficialGroqModel && groqApiKey) {
+        // Use official Groq API
+        fullResponse = await handleGroqOfficialStream({
+          systemPrompt,
+          messages,
+          options,
+          abortController,
+          model: actualModel,
+          temperature,
+          apiKey: groqApiKey,
+          baseUrl: groqBaseUrl,
+        });
+      } else {
+        // Fallback to original Groq handler (Cloud Function)
+        fullResponse = await handleGroqStream({
+          systemPrompt,
+          messages,
+          options,
+          abortController,
+          model: actualModel,
+          temperature,
+        });
+      }
     } else if (model?.toLowerCase().startsWith('ollama/')) {
       fullResponse = await handleOllamaStream({
         systemPrompt,
@@ -123,6 +168,31 @@ export const askAssistant = async ({
         abortController,
         model: actualModel,
         temperature,
+      });
+    } else if (model?.toLowerCase().startsWith('moonshot/')) {
+      // Use Moonshot API
+      const [moonshotApiKey, moonshotBaseUrl, customModels] = await Promise.all([
+        moonshotApiKeyStorage.get(),
+        moonshotBaseUrlStorage.get(),
+        customModelsStorage.get(),
+      ]);
+
+      const moonshotModel = customModels.find(m => m.value === model && m.type === 'moonshot');
+      const apiKey = moonshotModel?.apiKey || moonshotApiKey;
+
+      if (!apiKey) {
+        throw new Error('Moonshot API key is required');
+      }
+
+      fullResponse = await handleMoonshotStream({
+        systemPrompt,
+        messages,
+        options,
+        abortController,
+        model: actualModel,
+        temperature,
+        apiKey,
+        baseUrl: moonshotBaseUrl,
       });
     } else {
       fullResponse = await handleGroqStream({

@@ -55,7 +55,7 @@ export const MODEL_MIGRATION_MAP = {
 export type CustomModel = {
   value: string;
   label: string;
-  type: 'ollama' | 'openai' | 'anthropic' | 'deepseek';
+  type: 'ollama' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'moonshot';
   baseUrl?: string;
   apiKey?: string;
 };
@@ -104,6 +104,26 @@ export const ollamaBaseUrlStorage = createStorage<string>('ollamaBaseUrl', OLLAM
 });
 
 export const anthropicApiKeyStorage = createStorage<string>('anthropicApiKey', '', {
+  storageEnum: StorageEnum.Sync,
+  liveUpdate: true,
+});
+
+export const groqApiKeyStorage = createStorage<string>('groqApiKey', '', {
+  storageEnum: StorageEnum.Sync,
+  liveUpdate: true,
+});
+
+export const groqBaseUrlStorage = createStorage<string>('groqBaseUrl', 'https://api.groq.com/openai/v1', {
+  storageEnum: StorageEnum.Sync,
+  liveUpdate: true,
+});
+
+export const moonshotApiKeyStorage = createStorage<string>('moonshotApiKey', '', {
+  storageEnum: StorageEnum.Sync,
+  liveUpdate: true,
+});
+
+export const moonshotBaseUrlStorage = createStorage<string>('moonshotBaseUrl', 'https://api.moonshot.cn/v1', {
   storageEnum: StorageEnum.Sync,
   liveUpdate: true,
 });
