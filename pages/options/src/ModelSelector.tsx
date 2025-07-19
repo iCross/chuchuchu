@@ -29,6 +29,8 @@ import {
   groqBaseUrlStorage,
   moonshotApiKeyStorage,
   moonshotBaseUrlStorage,
+  geminiApiKeyStorage,
+  geminiBaseUrlStorage,
 } from './vars';
 
 type Model = {
@@ -44,12 +46,13 @@ type ModelOption = {
   isDisabled?: boolean;
 };
 
-type ModelType = 'ollama' | 'anthropic' | 'deepseek' | 'openai' | 'groq' | 'moonshot';
+type ModelType = 'ollama' | 'anthropic' | 'deepseek' | 'openai' | 'groq' | 'moonshot' | 'gemini';
 
 const MODEL_TYPES = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'groq', label: 'Groq' },
   { value: 'moonshot', label: 'Moonshot' },
+  { value: 'gemini', label: 'Gemini' },
   { value: 'ollama', label: 'Ollama' },
   { value: 'anthropic', label: 'Anthropic' },
   // To be added later:
@@ -76,6 +79,8 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
   const [groqBaseUrl, setGroqBaseUrl] = useState('https://api.groq.com/openai/v1');
   const [moonshotApiKey, setMoonshotApiKey] = useState('');
   const [moonshotBaseUrl, setMoonshotBaseUrl] = useState('https://api.moonshot.cn/v1');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiBaseUrl, setGeminiBaseUrl] = useState('https://generativelanguage.googleapis.com/v1beta');
 
   // Create a list of already added model names
   const addedModelNames = useMemo(
@@ -98,6 +103,8 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
         savedGroqBaseUrl,
         savedMoonshotKey,
         savedMoonshotBaseUrl,
+        savedGeminiKey,
+        savedGeminiBaseUrl,
       ] = await Promise.all([
         ollamaBaseUrlStorage.get(),
         customModelsStorage.get(),
@@ -107,6 +114,8 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
         groqBaseUrlStorage.get(),
         moonshotApiKeyStorage.get(),
         moonshotBaseUrlStorage.get(),
+        geminiApiKeyStorage.get(),
+        geminiBaseUrlStorage.get(),
       ]);
 
       setBaseUrl(savedBaseUrl);
@@ -117,6 +126,8 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
       setGroqBaseUrl(savedGroqBaseUrl);
       setMoonshotApiKey(savedMoonshotKey);
       setMoonshotBaseUrl(savedMoonshotBaseUrl);
+      setGeminiApiKey(savedGeminiKey);
+      setGeminiBaseUrl(savedGeminiBaseUrl);
     };
 
     if (isOpen) {
@@ -160,6 +171,18 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
       moonshotBaseUrlStorage.set(moonshotBaseUrl);
     }
   }, [moonshotBaseUrl]);
+
+  useEffect(() => {
+    if (geminiApiKey) {
+      geminiApiKeyStorage.set(geminiApiKey);
+    }
+  }, [geminiApiKey]);
+
+  useEffect(() => {
+    if (geminiBaseUrl) {
+      geminiBaseUrlStorage.set(geminiBaseUrl);
+    }
+  }, [geminiBaseUrl]);
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -368,6 +391,75 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
         return;
       }
 
+      if (selectedType === 'gemini') {
+        try {
+          setIsLoading(true);
+          setError(null);
+
+          if (!geminiApiKey) {
+            setModelOptions([]);
+            setSelectedModel(null);
+            return;
+          }
+
+          const response = await fetch(`${geminiBaseUrl}/models?key=${geminiApiKey}`);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch Gemini models: ${response.status} ${response.statusText}`);
+          }
+
+          const { models } = await response.json();
+
+          // Define the specific Gemini models we want to support
+          const supportedGeminiModels = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite-preview-06-17'];
+
+          const chatModels = models
+            .filter((model: { name: string }) => {
+              const modelId = model.name.replace('models/', '');
+              return supportedGeminiModels.includes(modelId);
+            })
+            .sort((a: { name: string }, b: { name: string }) => {
+              // Sort by priority: pro first, then flash, then flash-lite-preview
+              const aId = a.name.replace('models/', '');
+              const bId = b.name.replace('models/', '');
+
+              const priority = (id: string) => {
+                if (id === 'gemini-2.5-pro') return 1;
+                if (id === 'gemini-2.5-flash') return 2;
+                if (id === 'gemini-2.5-flash-lite-preview-06-17') return 3;
+                return 4;
+              };
+
+              return priority(aId) - priority(bId);
+            })
+            .map((model: { name: string; displayName?: string }) => {
+              const modelId = model.name.replace('models/', '');
+              return {
+                value: modelId,
+                label:
+                  model.displayName ||
+                  modelId
+                    .replace(/gemini-/g, 'Gemini ')
+                    .replace(/-/g, ' ')
+                    .replace(/\b\w/g, l => l.toUpperCase())
+                    .trim(),
+                isDisabled: addedModelNames.includes(modelId),
+              };
+            });
+
+          setModelOptions(chatModels);
+          const firstAvailable = chatModels.find((option: ModelOption) => !option.isDisabled);
+          setSelectedModel(firstAvailable || null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch Gemini models');
+          setModelOptions([]);
+          setSelectedModel(null);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       if (selectedType === 'anthropic') {
         try {
           setIsLoading(true);
@@ -493,7 +585,9 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
                 ? 'Groq'
                 : selectedType === 'moonshot'
                   ? 'Moonshot'
-                  : 'Ollama'
+                  : selectedType === 'gemini'
+                    ? 'Gemini'
+                    : 'Ollama'
         }: ${selectedModel.label}`,
         type: selectedType,
         baseUrl:
@@ -503,7 +597,9 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
               ? groqBaseUrl
               : selectedType === 'moonshot'
                 ? moonshotBaseUrl
-                : undefined,
+                : selectedType === 'gemini'
+                  ? geminiBaseUrl
+                  : undefined,
         apiKey:
           selectedType === 'openai'
             ? apiKey
@@ -513,7 +609,9 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
                 ? groqApiKey
                 : selectedType === 'moonshot'
                   ? moonshotApiKey
-                  : undefined,
+                  : selectedType === 'gemini'
+                    ? geminiApiKey
+                    : undefined,
       };
 
       customModelsStorage.get().then(models => {
@@ -626,6 +724,28 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
               </>
             )}
 
+            {selectedType === 'gemini' && (
+              <>
+                <FormControl>
+                  <FormLabel>Base URL</FormLabel>
+                  <Input
+                    value={geminiBaseUrl}
+                    onChange={e => setGeminiBaseUrl(e.target.value)}
+                    placeholder="Enter Gemini API base URL (default: https://generativelanguage.googleapis.com/v1beta)"
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>API Key</FormLabel>
+                  <Input
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={e => setGeminiApiKey(e.target.value)}
+                    placeholder="Enter your Gemini API key"
+                  />
+                </FormControl>
+              </>
+            )}
+
             <FormControl>
               <FormLabel>Model</FormLabel>
               {isLoading ? (
@@ -666,7 +786,8 @@ export const ModelSelector = ({ isOpen, onClose, onSelect }: Props) => {
               (selectedType === 'openai' && !apiKey) ||
               (selectedType === 'anthropic' && !anthropicApiKey) ||
               (selectedType === 'groq' && !groqApiKey) ||
-              (selectedType === 'moonshot' && !moonshotApiKey)
+              (selectedType === 'moonshot' && !moonshotApiKey) ||
+              (selectedType === 'gemini' && !geminiApiKey)
             }>
             Add Model
           </Button>

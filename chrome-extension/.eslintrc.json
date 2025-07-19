@@ -1,0 +1,5 @@
+{
+  "root": true,
+  "extends": ["../.eslintrc"],
+  "ignorePatterns": ["public/pdf.worker.js", "public/injected.js", "dist/**", "node_modules/**"]
+}

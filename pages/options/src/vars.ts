@@ -55,7 +55,7 @@ export const MODEL_MIGRATION_MAP = {
 export type CustomModel = {
   value: string;
   label: string;
-  type: 'ollama' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'moonshot';
+  type: 'ollama' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'moonshot' | 'gemini';
   baseUrl?: string;
   apiKey?: string;
 };
@@ -126,6 +126,20 @@ export const moonshotBaseUrlStorage = createStorage<string>('moonshotBaseUrl', '
   storageEnum: StorageEnum.Sync,
   liveUpdate: true,
 });
+
+export const geminiApiKeyStorage = createStorage<string>('geminiApiKey', '', {
+  storageEnum: StorageEnum.Sync,
+  liveUpdate: true,
+});
+
+export const geminiBaseUrlStorage = createStorage<string>(
+  'geminiBaseUrl',
+  'https://generativelanguage.googleapis.com/v1beta',
+  {
+    storageEnum: StorageEnum.Sync,
+    liveUpdate: true,
+  },
+);
 
 export type Mode = 'simple' | 'advanced';
 export const DEFAULT_MODE: Mode = 'simple';

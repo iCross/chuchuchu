@@ -3,12 +3,15 @@ import { handleOllamaStream } from './ollama-handler';
 import { handleOpenAIStream } from './openai-handler';
 import { handleAnthropicStream } from './anthropic-handler';
 import { handleMoonshotStream } from './moonshot-handler';
+import { handleGeminiStream, handleGeminiStreamPlainText } from './gemini-handler';
 import { type AskAssistantOptions } from './types';
 import {
   groqApiKeyStorage,
   groqBaseUrlStorage,
   moonshotApiKeyStorage,
   moonshotBaseUrlStorage,
+  geminiApiKeyStorage,
+  geminiBaseUrlStorage,
   customModelsStorage,
 } from '../../options/src/vars';
 
@@ -65,7 +68,9 @@ export const askAssistant = async ({
               ? model.replace(/^groq\//i, '')
               : model?.toLowerCase().startsWith('moonshot/')
                 ? model.replace(/^moonshot\//i, '')
-                : model;
+                : model?.toLowerCase().startsWith('gemini/')
+                  ? model.replace(/^gemini\//i, '')
+                  : model;
 
     let fullResponse: string;
 
@@ -193,6 +198,31 @@ export const askAssistant = async ({
         temperature,
         apiKey,
         baseUrl: moonshotBaseUrl,
+      });
+    } else if (model?.toLowerCase().startsWith('gemini/')) {
+      // Use Gemini API
+      const [geminiApiKey, geminiBaseUrl, customModels] = await Promise.all([
+        geminiApiKeyStorage.get(),
+        geminiBaseUrlStorage.get(),
+        customModelsStorage.get(),
+      ]);
+
+      const geminiModel = customModels.find(m => m.value === model && m.type === 'gemini');
+      const apiKey = geminiModel?.apiKey || geminiApiKey;
+
+      if (!apiKey) {
+        throw new Error('Gemini API key is required');
+      }
+
+      fullResponse = await handleGeminiStream({
+        systemPrompt,
+        messages,
+        options,
+        abortController,
+        model: actualModel,
+        temperature,
+        apiKey,
+        baseUrl: geminiBaseUrl,
       });
     } else {
       fullResponse = await handleGroqStream({
